@@ -1,7 +1,18 @@
 #lang racket
-(require feature-profile
-         feature-profile/plug-in-lib
-         profile/analyzer
+;(require feature-profile
+;         feature-profile/plug-in-lib
+;         profile/analyzer
+;         (only-in profile/render-text render))
+
+(define feature (dynamic-require 'feature-profile/plug-in-lib 'feature))
+(define make-interner (dynamic-require 'feature-profile/plug-in-lib 'make-interner))
+(define feature-report-core-samples
+  (dynamic-require 'feature-profile/plug-in-lib 'feature-report-core-samples))
+(define feature-report-raw-samples
+  (dynamic-require 'feature-profile/plug-in-lib 'feature-report-raw-samples))
+(define feature-report-total-time
+  (dynamic-require 'feature-profile/plug-in-lib 'feature-report-total-time))
+(require profile/analyzer
          (only-in profile/render-text render))
 
 (provide (all-defined-out))
@@ -54,8 +65,10 @@
               ;; Render results
               (newline) (newline) (displayln "Parsack Backtracking")
               (for ([i analyzed/filtered])
-                (printf "~a / ~a\t~a\t~a~n"
+                (define percent
+                  (/ (node-total i) (feature-report-total-time f-p) 1.0))
+                (printf "~a (~a%) : ~a : Branch: ~a~n"
                         (node-total i)
-                        (feature-report-total-time f-p)
+                        (~r (* 100 percent) #:precision 2)
                         (srcloc->string (node-src i))
-                        (cadr (node-id i))))))))
+                        (+ 1 (cadr (node-id i)))))))))
