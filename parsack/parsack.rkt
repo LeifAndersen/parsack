@@ -179,28 +179,35 @@
   [((Msg _ _ exp1) (Msg pos inp exp2))
    (Msg pos inp (append exp1 exp2))])
 
-(define (<or>* stx . args)
-  (define (start x)
-    (with-continuation-mark
-     'feature-profile:parsack-backtracking
-     `(<or> 0 ,(State-pos x) ,(build-source-location stx))
-     ((car args) x)))
-  (for/fold ([acc start])
-            ([p (cdr args)] [n (in-range 1 (length args))])
-    (define (p* x)
-      (with-continuation-mark
-       'feature-profile:parsack-backtracking
-       `(<or> ,n ,(State-pos x) ,(build-source-location stx))
-       (p x)))
-    (<or>2 acc p*)))
+(define-syntax (<or>* stx)
+  (syntax-parse stx
+    [s:id
+      #`(λ args
+          (define (start x)
+            #,(syntax-property
+               (syntax/loc stx ((car args) x))
+               'feature-profile:parsack-backtracking
+               (quasisyntax/loc stx
+                 `(<or> 0 ,(State-pos x)
+                   ,(build-source-location (quote-syntax/keep-srcloc #,stx))))))
+          (for/fold ([acc start])
+                    ([p (cdr args)] [n (in-range 1 (length args))])
+            (define (p* x)
+              #,(syntax-property
+                 (syntax/loc stx (p x))
+                 'feature-profile:parsack-backtracking
+                 (quasisyntax/loc stx
+                   `(<or> ,n ,(State-pos x)
+                     ,(build-source-location (quote-syntax/keep-srcloc #,stx))))))
+            (<or>2 acc p*)))]))
 
 ;; assumes (length args) >= 1
 (define-syntax (<or> stx)
   (syntax-parse stx
     [(_ args ...)
-     #`(<or>* (quote-syntax/keep-srcloc #,stx) args ...)]
-     [s #:when (identifier? #'s)
-        #`(λ x (apply <or>* (quote-syntax/keep-srcloc #,stx) x))]))
+     #`(apply <or>* (list args ...))]
+    [s:id
+     #`<or>*]))
 
 ;; short-circuiting choice combinator
 ;; only tries 2nd parser q if p errors
